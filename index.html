@@ -1,0 +1,863 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Havayolu Değerleme — DCF + 1Y Forward</title>
+  <!-- Tailwind CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    /* Basit tooltip */
+    .hint:hover::after{
+      content: attr(data-hint);
+      position: absolute;
+      background: #111827;
+      color: white;
+      padding: 6px 8px;
+      border-radius: 6px;
+      font-size: 12px;
+      transform: translateY(-110%);
+      white-space: pre-line;
+      z-index: 50;
+      width: max-content;
+      max-width: 320px;
+    }
+    .section-card{ @apply bg-white shadow rounded-xl p-5 md:p-6;}
+    .grid-2{ @apply grid grid-cols-1 md:grid-cols-2 gap-4;}
+    .label{ @apply block text-sm font-medium text-gray-700 mb-1;}
+    .inp{ @apply w-full rounded-lg border-gray-300 focus:border-indigo-500 focus:ring-indigo-500;}
+    .subtle{ @apply text-xs text-gray-500;}
+    .btn{ @apply inline-flex items-center justify-center rounded-lg px-4 py-2 font-medium;}
+    .btn-primary{ @apply bg-indigo-600 text-white hover:bg-indigo-700;}
+    .btn-ghost{ @apply bg-gray-100 text-gray-800 hover:bg-gray-200;}
+    .pill{ @apply inline-flex items-center text-xs px-2 py-1 rounded-full bg-gray-100 text-gray-700;}
+    .err{ @apply text-sm text-red-600;}
+    .ok{ @apply text-sm text-emerald-700;}
+    .kpi{ @apply text-xl md:text-2xl font-semibold;}
+    .mono{ font-variant-numeric: tabular-nums; font-family: ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;}
+  </style>
+</head>
+<body class="bg-gray-50">
+  <header class="bg-white border-b">
+    <div class="max-w-6xl mx-auto px-4 py-5 flex items-center justify-between">
+      <div>
+        <h1 class="text-xl md:text-2xl font-semibold">Havayolu Değerleme Aracı</h1>
+        <p class="text-gray-600 text-sm md:text-base">DCF (FCFF) + 1 Yıl İleri Değer • tek sayfa • tamamen cebir & istatistik</p>
+      </div>
+      <div class="pill">v1.0</div>
+    </div>
+  </header>
+
+  <main class="max-w-6xl mx-auto px-4 py-6 md:py-8 space-y-6">
+    <!-- Kısa açıklama -->
+    <div class="section-card">
+      <p class="text-sm text-gray-700">
+        Girdileri <strong>tek tek</strong> doldur. Asgari alanlarla çalışır: Revenü, yakıt ve yakıt dışı maliyetlerden
+        <span class="pill">FCFF</span> üretir; <span class="pill">WACC</span> ve <span class="pill">g</span> ile bugünkü <em>EV</em>'i hesaplar.
+        Forecast sekmesinde 1 yıl sonrası için aynı akışı uygular. İsteğe bağlı olarak WACC'ı bileşenlerinden hesaplayabilir ve yakıtı "tüketim &times; fiyat" ile ya da doğrudan birim maliyetle girebilirsin.
+      </p>
+    </div>
+
+    <!-- AYARLAR -->
+    <section class="section-card">
+      <h2 class="text-lg font-semibold mb-4">0) Genel Ayarlar</h2>
+      <div class="grid-2">
+        <div>
+          <label class="label">Para Birimi Etiketi</label>
+          <input id="currency" class="inp" type="text" placeholder="TRY / EUR / USD ... (sadece etiket)" value="TRY"/>
+          <p class="subtle">Sadece etiket amaçlıdır; hesaplama birimi uyumundan sen sorumlusun.</p>
+        </div>
+        <div>
+          <label class="label">Raporlama Birimi</label>
+          <select id="scale" class="inp">
+            <option value="1">Birim (x1)</option>
+            <option value="1e3">Bin (x1,000)</option>
+            <option value="1e6" selected> Milyon (x1,000,000)</option>
+            <option value="1e9"> Milyar (x1,000,000,000)</option>
+          </select>
+          <p class="subtle">Raporlamada gösterim için; hesaplama değişmez. Rakamlarını buna göre gir.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- BUGÜN -->
+    <section class="section-card">
+      <h2 class="text-lg font-semibold mb-4">1) Bugünkü Değer İçin Girdiler</h2>
+
+      <!-- GELİR -->
+      <div class="mb-6">
+        <h3 class="font-semibold mb-3">Gelir Bileşenleri</h3>
+        <div class="grid-2">
+          <div>
+            <label class="label">ASK (Available Seat-Km)</label>
+            <input id="c_ask" class="inp" type="number" step="any" placeholder="Örn. 12000000000" />
+            <p class="subtle">Tüm gelir/maliyetleri bu hacme göre hesaplarız.</p>
+          </div>
+          <div>
+            <label class="label">Doluluk (LF) %</label>
+            <input id="c_lf" class="inp" type="number" step="0.01" min="0" max="100" placeholder="Örn. 84.5" />
+          </div>
+          <div>
+            <label class="label">Yolcu Yield (Y) / RPK <span class="hint text-indigo-600 cursor-help" data-hint="Para birimi / RPK (ör. TRY/RPK).">?</span></label>
+            <input id="c_y" class="inp" type="number" step="any" placeholder="Örn. 0.35" />
+          </div>
+          <div>
+            <label class="label">Ancillary / ASK</label>
+            <input id="c_a" class="inp" type="number" step="any" placeholder="Örn. 0.02" />
+          </div>
+          <div>
+            <label class="label">Kargo / ASK</label>
+            <input id="c_cargo" class="inp" type="number" step="any" placeholder="Örn. 0.015" />
+          </div>
+        </div>
+      </div>
+
+      <!-- YAKIT -->
+      <div class="mb-6">
+        <h3 class="font-semibold mb-3">Yakıt Maliyeti</h3>
+        <div class="mb-3">
+          <label class="label">Giriş Modu</label>
+          <div class="flex gap-3">
+            <label class="inline-flex items-center gap-2">
+              <input type="radio" name="c_fuel_mode" value="burn" checked onchange="toggleFuelMode('c')"/>
+              <span> Tüketim × Fiyat (hedge dahil)</span>
+            </label>
+            <label class="inline-flex items-center gap-2">
+              <input type="radio" name="c_fuel_mode" value="perask" onchange="toggleFuelMode('c')"/>
+              <span> Doğrudan FUEL/ASK gir</span>
+            </label>
+          </div>
+        </div>
+
+        <div id="c_fuel_burn_box" class="grid-2">
+          <div>
+            <label class="label">Yakıt Tüketimi / ASK (b)</label>
+            <input id="c_burn" class="inp" type="number" step="any" placeholder="kg veya litre / ASK" />
+          </div>
+          <div>
+            <label class="label">Jet Yakıt Fiyatı (P<sub>fuel</sub>)</label>
+            <input id="c_pfuel" class="inp" type="number" step="any" placeholder="Para birimi / kg (veya litre)" />
+          </div>
+          <div>
+            <label class="label">Hedge Oranı %</label>
+            <input id="c_hr" class="inp" type="number" step="0.01" min="0" max="100" placeholder="Örn. 40" />
+          </div>
+          <div>
+            <label class="label">Hedge Fiyatı</label>
+            <input id="c_phedge" class="inp" type="number" step="any" placeholder="Para birimi / kg" />
+          </div>
+        </div>
+
+        <div id="c_fuel_perask_box" class="grid-2 hidden">
+          <div>
+            <label class="label">FUEL / ASK (birim yakıt maliyeti)</label>
+            <input id="c_fuel_per_ask" class="inp" type="number" step="any" placeholder="Örn. 0.12" />
+          </div>
+        </div>
+      </div>
+
+      <!-- YAKIT DIŞI -->
+      <div class="mb-6">
+        <h3 class="font-semibold mb-3">Yakıt Dışı Maliyetler</h3>
+        <div class="grid-2">
+          <div>
+            <label class="label">CASK<sup>ex</sup> / ASK</label>
+            <input id="c_cask_ex" class="inp" type="number" step="any" placeholder="Örn. 0.045" />
+          </div>
+          <div>
+            <label class="label">Amortisman (Depreciation)</label>
+            <input id="c_dep" class="inp" type="number" step="any" placeholder="Toplam tutar" />
+          </div>
+          <div>
+            <label class="label">CAPEX</label>
+            <input id="c_capex" class="inp" type="number" step="any" placeholder="Toplam tutar" />
+          </div>
+          <div>
+            <label class="label">ΔNWC (İşletme Sermayesi Değişimi)</label>
+            <input id="c_nwc" class="inp" type="number" step="any" placeholder="Pozitif = nakit çıkışı" />
+          </div>
+        </div>
+      </div>
+
+      <!-- WACC -->
+      <div class="mb-6">
+        <h3 class="font-semibold mb-3">İskonto Oranı</h3>
+        <div class="mb-3">
+          <label class="label">WACC Giriş Modu</label>
+          <div class="flex gap-3">
+            <label class="inline-flex items-center gap-2">
+              <input type="radio" name="c_wacc_mode" value="direct" checked onchange="toggleWaccMode('c')"/>
+              <span> Doğrudan WACC gir</span>
+            </label>
+            <label class="inline-flex items-center gap-2">
+              <input type="radio" name="c_wacc_mode" value="build" onchange="toggleWaccMode('c')"/>
+              <span> Bileşenlerden hesapla (CAPM + borç)</span>
+            </label>
+          </div>
+        </div>
+
+        <div id="c_wacc_direct_box" class="grid-2">
+          <div>
+            <label class="label">WACC %</label>
+            <input id="c_wacc" class="inp" type="number" step="0.01" min="0" placeholder="Örn. 10" />
+          </div>
+          <div>
+            <label class="label">Uzun Dönem Büyüme (g) %</label>
+            <input id="c_g" class="inp" type="number" step="0.01" placeholder="Örn. 3" />
+          </div>
+        </div>
+
+        <div id="c_wacc_build_box" class="hidden">
+          <div class="grid-2">
+            <div>
+              <label class="label">Risk-siz (r<sub>f</sub>) %</label>
+              <input id="c_rf" class="inp" type="number" step="0.01" placeholder="Örn. 4" />
+            </div>
+            <div>
+              <label class="label">Piyasa Risk Primi (ERP) %</label>
+              <input id="c_erp" class="inp" type="number" step="0.01" placeholder="Örn. 5" />
+            </div>
+            <div>
+              <label class="label">Beta (β<sub>m</sub>)</label>
+              <input id="c_beta" class="inp" type="number" step="any" placeholder="Örn. 1.2" />
+            </div>
+            <div>
+              <label class="label">Ek Faktör RP % × Beta (opsiyonel)</label>
+              <div class="grid grid-cols-3 gap-2">
+                <input id="c_rp_oil" class="inp" type="number" step="0.01" placeholder="RP_oil %" />
+                <input id="c_beta_oil" class="inp" type="number" step="any" placeholder="β_oil" />
+                <input id="c_rp_fx" class="inp" type="number" step="0.01" placeholder="RP_fx %" />
+                <input id="c_beta_fx" class="inp" type="number" step="any" placeholder="β_fx" />
+              </div>
+              <p class="subtle">Boş bırakabilirsin.</p>
+            </div>
+            <div>
+              <label class="label">Borç Maliyeti (k<sub>D</sub>) %</label>
+              <input id="c_kd" class="inp" type="number" step="0.01" placeholder="Örn. 7" />
+            </div>
+            <div>
+              <label class="label">Vergi Oranı (τ) %</label>
+              <input id="c_tax_build" class="inp" type="number" step="0.01" placeholder="Örn. 20" />
+            </div>
+            <div>
+              <label class="label">Sermaye Ağırlıkları % (w<sub>E</sub> & w<sub>D</sub>)</label>
+              <div class="grid grid-cols-2 gap-2">
+                <input id="c_wE" class="inp" type="number" step="0.01" placeholder="wE %" />
+                <input id="c_wD" class="inp" type="number" step="0.01" placeholder="wD %" />
+              </div>
+              <p class="subtle">Toplam %100 olmalı.</p>
+            </div>
+            <div>
+              <label class="label">Uzun Dönem Büyüme (g) %</label>
+              <input id="c_g_build" class="inp" type="number" step="0.01" placeholder="Örn. 3" />
+            </div>
+          </div>
+        </div>
+
+        <div class="grid-2 mt-4">
+          <div>
+            <label class="label">Vergi Oranı (τ) % — bugünkü FCFF için</label>
+            <input id="c_tax" class="inp" type="number" step="0.01" placeholder="Örn. 20" />
+          </div>
+          <div>
+            <label class="label">Net Borç (bugün)</label>
+            <input id="c_netdebt" class="inp" type="number" step="any" placeholder="Borç + lease − nakit" />
+          </div>
+          <div>
+            <label class="label">Hisse Adedi (opsiyonel)</label>
+            <input id="c_shares" class="inp" type="number" step="any" placeholder="Adet (örn. 1375000000)" />
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- FORECAST -->
+    <section class="section-card">
+      <div class="flex items-center justify-between mb-4">
+        <h2 class="text-lg font-semibold">2) 1 Yıl Sonrası Değer İçin Girdiler (Forecast)</h2>
+        <div class="flex gap-2">
+          <button class="btn btn-ghost" onclick="copyCurrentToForecast()">Bugünkü değerleri kopyala</button>
+        </div>
+      </div>
+
+      <!-- Opsiyonel makro -->
+      <details class="mb-6">
+        <summary class="cursor-pointer font-medium text-indigo-700">Makro ayarlamalar (opsiyonel)</summary>
+        <div class="mt-3 grid-2">
+          <div>
+            <label class="label">Ağ-ağırlıklı GDP büyümesi % (gelecek yıl)</label>
+            <input id="m_gdp" class="inp" type="number" step="0.01" placeholder="Örn. 2.5" />
+            <p class="subtle">Y (yield) için varsayılan elastisite 0.30 uygulanır.</p>
+          </div>
+          <div>
+            <label class="label">Ücret enflasyonu %</label>
+            <input id="m_wage" class="inp" type="number" step="0.01" placeholder="Örn. 12" />
+            <p class="subtle">CASK<sup>ex</sup> için varsayılan elastisite 0.70 uygulanır.</p>
+          </div>
+          <div>
+            <label class="label">Jet yakıt fiyat değişimi %</label>
+            <input id="m_fuel" class="inp" type="number" step="0.01" placeholder="Örn. -5" />
+            <p class="subtle">P<sub>fuel</sub>'e bire bir yansıtılır (hedge nedeniyle tam geçiş olmayabilir).</p>
+          </div>
+          <div>
+            <label class="label">Kargo oran değişimi %</label>
+            <input id="m_cargo" class="inp" type="number" step="0.01" placeholder="Örn. 3" />
+            <p class="subtle">CARGO/ASK'e bire bir uygulanır.</p>
+          </div>
+          <div class="md:col-span-2">
+            <button class="btn btn-ghost" onclick="applyMacroAdjustments()">Makroyu forecast'a uygula</button>
+          </div>
+        </div>
+      </details>
+
+      <!-- GELİR -->
+      <div class="mb-6">
+        <h3 class="font-semibold mb-3">Gelir Bileşenleri (t+1)</h3>
+        <div class="grid-2">
+          <div>
+            <label class="label">ASK (t+1)</label>
+            <input id="f_ask" class="inp" type="number" step="any" />
+          </div>
+          <div>
+            <label class="label">Doluluk (LF) % (t+1)</label>
+            <input id="f_lf" class="inp" type="number" step="0.01" min="0" max="100" />
+          </div>
+          <div>
+            <label class="label">Yolcu Yield (Y) / RPK (t+1)</label>
+            <input id="f_y" class="inp" type="number" step="any" />
+          </div>
+          <div>
+            <label class="label">Ancillary / ASK (t+1)</label>
+            <input id="f_a" class="inp" type="number" step="any" />
+          </div>
+          <div>
+            <label class="label">Kargo / ASK (t+1)</label>
+            <input id="f_cargo" class="inp" type="number" step="any" />
+          </div>
+        </div>
+      </div>
+
+      <!-- YAKIT -->
+      <div class="mb-6">
+        <h3 class="font-semibold mb-3">Yakıt Maliyeti (t+1)</h3>
+        <div class="mb-3">
+          <label class="label">Giriş Modu</label>
+          <div class="flex gap-3">
+            <label class="inline-flex items-center gap-2">
+              <input type="radio" name="f_fuel_mode" value="burn" checked onchange="toggleFuelMode('f')"/>
+              <span> Tüketim × Fiyat (hedge dahil)</span>
+            </label>
+            <label class="inline-flex items-center gap-2">
+              <input type="radio" name="f_fuel_mode" value="perask" onchange="toggleFuelMode('f')"/>
+              <span> Doğrudan FUEL/ASK gir</span>
+            </label>
+          </div>
+        </div>
+
+        <div id="f_fuel_burn_box" class="grid-2">
+          <div>
+            <label class="label">Yakıt Tüketimi / ASK (b) (t+1)</label>
+            <input id="f_burn" class="inp" type="number" step="any" />
+          </div>
+          <div>
+            <label class="label">Jet Yakıt Fiyatı (P<sub>fuel</sub>) (t+1)</label>
+            <input id="f_pfuel" class="inp" type="number" step="any" />
+          </div>
+          <div>
+            <label class="label">Hedge Oranı % (t+1)</label>
+            <input id="f_hr" class="inp" type="number" step="0.01" min="0" max="100" />
+          </div>
+          <div>
+            <label class="label">Hedge Fiyatı (t+1)</label>
+            <input id="f_phedge" class="inp" type="number" step="any" />
+          </div>
+        </div>
+
+        <div id="f_fuel_perask_box" class="grid-2 hidden">
+          <div>
+            <label class="label">FUEL / ASK (t+1)</label>
+            <input id="f_fuel_per_ask" class="inp" type="number" step="any" />
+          </div>
+        </div>
+      </div>
+
+      <!-- YAKIT DIŞI -->
+      <div class="mb-6">
+        <h3 class="font-semibold mb-3">Yakıt Dışı Maliyetler (t+1)</h3>
+        <div class="grid-2">
+          <div>
+            <label class="label">CASK<sup>ex</sup> / ASK (t+1)</label>
+            <input id="f_cask_ex" class="inp" type="number" step="any" />
+          </div>
+          <div>
+            <label class="label">Amortisman (t+1)</label>
+            <input id="f_dep" class="inp" type="number" step="any" />
+          </div>
+          <div>
+            <label class="label">CAPEX (t+1)</label>
+            <input id="f_capex" class="inp" type="number" step="any" />
+          </div>
+          <div>
+            <label class="label">ΔNWC (t+1)</label>
+            <input id="f_nwc" class="inp" type="number" step="any" />
+          </div>
+        </div>
+      </div>
+
+      <!-- WACC -->
+      <div class="mb-4">
+        <h3 class="font-semibold mb-3">İskonto Oranı (t+1)</h3>
+        <div class="mb-3">
+          <label class="label">WACC Giriş Modu</label>
+          <div class="flex gap-3">
+            <label class="inline-flex items-center gap-2">
+              <input type="radio" name="f_wacc_mode" value="direct" checked onchange="toggleWaccMode('f')"/>
+              <span> Doğrudan WACC gir</span>
+            </label>
+            <label class="inline-flex items-center gap-2">
+              <input type="radio" name="f_wacc_mode" value="build" onchange="toggleWaccMode('f')"/>
+              <span> Bileşenlerden hesapla</span>
+            </label>
+          </div>
+        </div>
+
+        <div id="f_wacc_direct_box" class="grid-2">
+          <div>
+            <label class="label">WACC % (t+1)</label>
+            <input id="f_wacc" class="inp" type="number" step="0.01" min="0" />
+          </div>
+          <div>
+            <label class="label">Uzun Dönem Büyüme g % (t+1 sonrası)</label>
+            <input id="f_g" class="inp" type="number" step="0.01" />
+          </div>
+        </div>
+
+        <div id="f_wacc_build_box" class="hidden">
+          <div class="grid-2">
+            <div>
+              <label class="label">Risk-siz (r<sub>f</sub>) %</label>
+              <input id="f_rf" class="inp" type="number" step="0.01" />
+            </div>
+            <div>
+              <label class="label">ERP %</label>
+              <input id="f_erp" class="inp" type="number" step="0.01" />
+            </div>
+            <div>
+              <label class="label">Beta</label>
+              <input id="f_beta" class="inp" type="number" step="any" />
+            </div>
+            <div>
+              <label class="label">Ek Faktör RP % × Beta (ops.)</label>
+              <div class="grid grid-cols-3 gap-2">
+                <input id="f_rp_oil" class="inp" type="number" step="0.01" placeholder="RP_oil %" />
+                <input id="f_beta_oil" class="inp" type="number" step="any" placeholder="β_oil" />
+                <input id="f_rp_fx" class="inp" type="number" step="0.01" placeholder="RP_fx %" />
+                <input id="f_beta_fx" class="inp" type="number" step="any" placeholder="β_fx" />
+              </div>
+            </div>
+            <div>
+              <label class="label">k<sub>D</sub> %</label>
+              <input id="f_kd" class="inp" type="number" step="0.01" />
+            </div>
+            <div>
+              <label class="label">Vergi Oranı (τ) %</label>
+              <input id="f_tax_build" class="inp" type="number" step="0.01" />
+            </div>
+            <div>
+              <label class="label">Ağırlıklar % (w<sub>E</sub>, w<sub>D</sub>)</label>
+              <div class="grid grid-cols-2 gap-2">
+                <input id="f_wE" class="inp" type="number" step="0.01" placeholder="wE %" />
+                <input id="f_wD" class="inp" type="number" step="0.01" placeholder="wD %" />
+              </div>
+            </div>
+            <div>
+              <label class="label">Uzun Dönem Büyüme g %</label>
+              <input id="f_g_build" class="inp" type="number" step="0.01" />
+            </div>
+          </div>
+        </div>
+
+        <div class="grid-2 mt-4">
+          <div>
+            <label class="label">Vergi Oranı (τ) % — FCFF (t+1) için</label>
+            <input id="f_tax" class="inp" type="number" step="0.01" />
+          </div>
+          <div>
+            <label class="label">Net Borç (t+1)</label>
+            <input id="f_netdebt" class="inp" type="number" step="any" />
+          </div>
+          <div>
+            <label class="label">Hisse Adedi (opsiyonel, t+1)</label>
+            <input id="f_shares" class="inp" type="number" step="any" />
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- HESAPLA -->
+    <section class="section-card">
+      <div class="flex items-center justify-between">
+        <h2 class="text-lg font-semibold">3) Hesapla</h2>
+        <div class="flex gap-2">
+          <button class="btn btn-ghost" onclick="resetAll()">Temizle</button>
+          <button class="btn btn-primary" onclick="computeAll()">Hesapla</button>
+        </div>
+      </div>
+      <p id="msg" class="mt-3"></p>
+
+      <div id="results" class="mt-5 grid gap-6 md:grid-cols-2">
+        <!-- Bugün -->
+        <div class="border rounded-xl p-4 bg-gray-50">
+          <h3 class="font-semibold mb-3">Sonuç — Bugün</h3>
+          <div class="space-y-2">
+            <div><span class="text-gray-600">Gelir (REV):</span> <span id="r_rev0" class="mono"></span></div>
+            <div><span class="text-gray-600">Yakıt:</span> <span id="r_fuel0" class="mono"></span> <span class="subtle">(<span id="r_fuelpa0"></span> / ASK)</span></div>
+            <div><span class="text-gray-600">Yakıt dışı:</span> <span id="r_ex0" class="mono"></span> <span class="subtle">(<span id="r_caskex0"></span> / ASK)</span></div>
+            <div><span class="text-gray-600">EBITDA:</span> <span id="r_ebitda0" class="mono"></span></div>
+            <div><span class="text-gray-600">EBIT:</span> <span id="r_ebit0" class="mono"></span></div>
+            <div><span class="text-gray-600">FCFF₁:</span> <span id="r_fcff1" class="mono"></span></div>
+            <div class="border-t pt-2"><span class="text-gray-600">WACC:</span> <span id="r_wacc0" class="mono"></span> • <span class="text-gray-600">g:</span> <span id="r_g0" class="mono"></span></div>
+            <div class="kpi">EV₀: <span id="r_ev0" class="mono"></span> <span class="pill" id="curLabel"></span></div>
+            <div><span class="text-gray-600">Özsermaye (Equity):</span> <span id="r_equity0" class="mono"></span></div>
+            <div><span class="text-gray-600">Hisse Fiyatı (ops.):</span> <span id="r_ps0" class="mono"></span></div>
+          </div>
+        </div>
+
+        <!-- 1 Yıl Sonra -->
+        <div class="border rounded-xl p-4 bg-gray-50">
+          <h3 class="font-semibold mb-3">Sonuç — 1 Yıl Sonra</h3>
+          <div class="space-y-2">
+            <div><span class="text-gray-600">Gelir (REV t+1):</span> <span id="r_rev1" class="mono"></span></div>
+            <div><span class="text-gray-600">FCFF<sub>t+1</sub>:</span> <span id="r_fcff2" class="mono"></span></div>
+            <div class="border-t pt-2"><span class="text-gray-600">WACC<sub>t+1</sub>:</span> <span id="r_wacc1" class="mono"></span> • <span class="text-gray-600">g<sub>t+1</sub>:</span> <span id="r_g1" class="mono"></span></div>
+            <div class="kpi">EV<sub>t+1</sub> (Gordon): <span id="r_ev1" class="mono"></span> <span class="pill" id="curLabel2"></span></div>
+            <div><span class="text-gray-600">Özsermaye (t+1):</span> <span id="r_equity1" class="mono"></span></div>
+            <div><span class="text-gray-600">Hisse Fiyatı (ops.):</span> <span id="r_ps1" class="mono"></span></div>
+            <div class="border-t pt-2"><span class="text-gray-600">Roll‑forward kontrolü:</span> <span id="r_rfcheck" class="mono"></span> <span class="subtle">( (1+WACC<sub>t+1</sub>)·EV₀ − FCFF<sub>t+1</sub> )</span></div>
+            <div id="rf_note" class="subtle"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <footer class="text-center text-xs text-gray-500 py-4">
+      Cebir: REV = ASK·(LF·Y + A + CARGO); FCFF = EBIT·(1−τ) + Dep − CAPEX − ΔNWC; EV = FCFF<sub>1</sub>/(WACC−g)
+    </footer>
+  </main>
+
+  <script>
+    // ------------------ Yardımcılar ------------------
+    const $ = (id)=>document.getElementById(id);
+    const cur = ()=> $('currency').value || '';
+    const scale = ()=> parseFloat($('scale').value || '1');
+
+    const pct = (x)=> isFinite(x)? (x*100).toFixed(2)+'%':'';
+    const fmt = (x)=> {
+      if(!isFinite(x)) return '';
+      const sc = scale();
+      return new Intl.NumberFormat('tr-TR', {maximumFractionDigits: 2}).format(x / sc)+' '+cur();
+    };
+    const fmtn = (x)=> {
+      if(!isFinite(x)) return '';
+      const sc = scale();
+      return new Intl.NumberFormat('tr-TR', {maximumFractionDigits: 2}).format(x / sc);
+    };
+
+    const val = (id, def=0)=> {
+      const v = parseFloat($(id)?.value);
+      return isNaN(v)? def : v;
+    };
+    const valPct = (id, def=0)=> val(id, def)/100;
+
+    function toggleFuelMode(prefix){
+      const mode = document.querySelector(`input[name="${prefix}_fuel_mode"]:checked`)?.value || 'burn';
+      $(`${prefix}_fuel_burn_box`).classList.toggle('hidden', mode !== 'burn');
+      $(`${prefix}_fuel_perask_box`).classList.toggle('hidden', mode !== 'perask');
+    }
+    function toggleWaccMode(prefix){
+      const mode = document.querySelector(`input[name="${prefix}_wacc_mode"]:checked`)?.value || 'direct';
+      $(`${prefix}_wacc_direct_box`).classList.toggle('hidden', mode !== 'direct');
+      $(`${prefix}_wacc_build_box`).classList.toggle('hidden', mode !== 'build');
+    }
+
+    // WACC hesapla (build modu)
+    function buildWACC(prefix, tau){
+      const rf = valPct(`${prefix}_rf`);
+      const erp = valPct(`${prefix}_erp`);
+      const beta = val(`${prefix}_beta`);
+      const rp_oil = valPct(`${prefix}_rp_oil`);
+      const b_oil = val(`${prefix}_beta_oil`);
+      const rp_fx = valPct(`${prefix}_rp_fx`);
+      const b_fx = val(`${prefix}_beta_fx`);
+      const kd = valPct(`${prefix}_kd`);
+      const wE = valPct(`${prefix}_wE`);
+      const wD = valPct(`${prefix}_wD`);
+      if(Math.abs(wE + wD - 1) > 1e-6) throw new Error("WACC ağırlıkları toplamı %100 olmalı.");
+      const kE = rf + beta*erp + (isFinite(b_oil)? b_oil*rp_oil:0) + (isFinite(b_fx)? b_fx*rp_fx:0);
+      return wE*kE + wD*kd*(1 - tau);
+    }
+
+    function getWACC(prefix){
+      const mode = document.querySelector(`input[name="${prefix}_wacc_mode"]:checked`)?.value || 'direct';
+      if(mode === 'direct'){
+        return valPct(`${prefix}_wacc`);
+      } else {
+        const tau = valPct(`${prefix}_tax_build`);
+        return buildWACC(prefix, tau);
+      }
+    }
+    function getG(prefix){
+      const mode = document.querySelector(`input[name="${prefix}_wacc_mode"]:checked`)?.value || 'direct';
+      return valPct(mode==='direct'?`${prefix}_g`:`${prefix}_g_build`);
+    }
+
+    function fuelCost(prefix, ASK){
+      const mode = document.querySelector(`input[name="${prefix}_fuel_mode"]:checked`)?.value || 'burn';
+      if(mode === 'perask'){
+        const fpa = val(`${prefix}_fuel_per_ask`);
+        return { total: fpa*ASK, perASK: fpa };
+      } else {
+        const b = val(`${prefix}_burn`);
+        const pf = val(`${prefix}_pfuel`);
+        const hr = valPct(`${prefix}_hr`);
+        const ph = val(`${prefix}_phedge`);
+        const peff = (1-hr)*pf + hr*ph;
+        const total = ASK * b * peff;
+        const perASK = total / ASK;
+        return { total, perASK };
+      }
+    }
+
+    // Bugün hesapla
+    function computeToday(){
+      const ASK = val('c_ask');
+      const LF = valPct('c_lf');
+      const Y = val('c_y');
+      const A = val('c_a');
+      const CARGO = val('c_cargo');
+
+      if(ASK<=0 || LF<=0 || Y<0) throw new Error("Bugün: ASK, LF ve Y alanlarını kontrol et.");
+
+      const REV = ASK * (LF*Y + A + CARGO);
+
+      const fuel = fuelCost('c', ASK);
+      const CASKex = val('c_cask_ex');
+      const exTotal = CASKex * ASK;
+
+      const EBITDA = REV - fuel.total - exTotal;
+      const Dep = val('c_dep');
+      const EBIT = EBITDA - Dep;
+
+      const tau = valPct('c_tax');
+      const NOPAT = EBIT * (1 - tau);
+      const CAPEX = val('c_capex');
+      const DNWC = val('c_nwc');
+
+      const FCFF1 = NOPAT + Dep - CAPEX - DNWC;
+
+      // WACC & g
+      let WACC, g;
+      const wmode = document.querySelector('input[name="c_wacc_mode"]:checked')?.value || 'direct';
+      if(wmode === 'direct'){
+        WACC = valPct('c_wacc');
+        g = valPct('c_g');
+      } else {
+        WACC = buildWACC('c', valPct('c_tax_build'));
+        g = valPct('c_g_build');
+      }
+      if(!(WACC>g)) throw new Error("Bugün: WACC > g olmalı.");
+
+      const EV0 = FCFF1 / (WACC - g);
+      const ND = val('c_netdebt');
+      const Equity0 = EV0 - ND;
+
+      const shares = val('c_shares');
+      const PS0 = shares>0? Equity0/shares : NaN;
+
+      // Yaz
+      $('r_rev0').textContent = fmt(REV);
+      $('r_fuel0').textContent = fmt(fuel.total);
+      $('r_fuelpa0').textContent = fmtn(fuel.perASK)+' '+cur();
+      $('r_ex0').textContent = fmt(exTotal);
+      $('r_caskex0').textContent = fmtn(CASKex)+' '+cur();
+      $('r_ebitda0').textContent = fmt(EBITDA);
+      $('r_ebit0').textContent = fmt(EBIT);
+      $('r_fcff1').textContent = fmt(FCFF1);
+      $('r_wacc0').textContent = pct(WACC);
+      $('r_g0').textContent = pct(g);
+      $('r_ev0').textContent = fmt(EV0);
+      $('r_equity0').textContent = fmt(Equity0);
+      $('r_ps0').textContent = isFinite(PS0)? fmtn(PS0)+' '+cur() : '—';
+      $('curLabel').textContent = cur();
+
+      return {EV0, FCFF1, WACC, g, REV0: REV};
+    }
+
+    // Forecast hesapla
+    function computeForecast(EV0){
+      const ASK = val('f_ask');
+      const LF = valPct('f_lf');
+      const Y = val('f_y');
+      const A = val('f_a');
+      const CARGO = val('f_cargo');
+
+      if(ASK<=0 || LF<=0 || Y<0) throw new Error("Forecast: ASK, LF ve Y alanlarını kontrol et.");
+
+      const REV = ASK * (LF*Y + A + CARGO);
+
+      const fuel = fuelCost('f', ASK);
+      const CASKex = val('f_cask_ex');
+      const exTotal = CASKex * ASK;
+
+      const EBITDA = REV - fuel.total - exTotal;
+      const Dep = val('f_dep');
+      const EBIT = EBITDA - Dep;
+
+      const tau = valPct('f_tax');
+      const NOPAT = EBIT * (1 - tau);
+      const CAPEX = val('f_capex');
+      const DNWC = val('f_nwc');
+
+      // FCFF_(t+1)
+      const FCFF_next = NOPAT + Dep - CAPEX - DNWC;
+
+      // WACC & g
+      let WACC1, g1;
+      const wmode = document.querySelector('input[name="f_wacc_mode"]:checked')?.value || 'direct';
+      if(wmode === 'direct'){
+        WACC1 = valPct('f_wacc');
+        g1 = valPct('f_g');
+      } else {
+        WACC1 = buildWACC('f', valPct('f_tax_build'));
+        g1 = valPct('f_g_build');
+      }
+      if(!(WACC1>g1)) throw new Error("Forecast: WACC > g olmalı.");
+
+      // EV_(t+1) — Gordon: EV1 = FCFF_(t+2)/(WACC1 - g1) = FCFF_(t+1)*(1+g1)/(WACC1 - g1)
+      const EV1 = FCFF_next * (1 + g1) / (WACC1 - g1);
+
+      // Roll-forward kontrol: EV1* ≈ (1+WACC1)·EV0 − FCFF_(t+1)
+      const EV1_rf = (1 + WACC1) * EV0 - FCFF_next;
+
+      const ND1 = val('f_netdebt');
+      const Equity1 = EV1 - ND1;
+      const shares1 = val('f_shares');
+      const PS1 = shares1>0? Equity1/shares1 : NaN;
+
+      // Yaz
+      $('r_rev1').textContent = fmt(REV);
+      $('r_fcff2').textContent = fmt(FCFF_next);
+      $('r_wacc1').textContent = pct(WACC1);
+      $('r_g1').textContent = pct(g1);
+      $('r_ev1').textContent = fmt(EV1);
+      $('r_equity1').textContent = fmt(Equity1);
+      $('r_ps1').textContent = isFinite(PS1)? fmtn(PS1)+' '+cur() : '—';
+      $('r_rfcheck').textContent = fmt(EV1_rf);
+
+      const diff = isFinite(EV1)&&isFinite(EV1_rf) ? ((EV1_rf - EV1)/Math.abs(EV1))*100 : NaN;
+      $('rf_note').textContent = isFinite(diff) ? `Roll-forward ile Gordon farkı: ${diff.toFixed(2)}%` : '';
+
+      $('curLabel2').textContent = cur();
+
+      return {EV1, EV1_rf, FCFF_next, WACC1, g1, REV1: REV};
+    }
+
+    function computeAll(){
+      try{
+        $('msg').className = '';
+        $('msg').textContent = '';
+        const today = computeToday();
+        const fwd = computeForecast(today.EV0);
+        $('msg').className = 'ok';
+        $('msg').textContent = 'Hesaplama tamam.';
+      }catch(e){
+        $('msg').className = 'err';
+        $('msg').textContent = e.message || 'Hata oluştu. Alanları kontrol et.';
+      }
+    }
+
+    function copyCurrentToForecast(){
+      // Gelir
+      $('f_ask').value = $('c_ask').value;
+      $('f_lf').value = $('c_lf').value;
+      $('f_y').value = $('c_y').value;
+      $('f_a').value = $('c_a').value;
+      $('f_cargo').value = $('c_cargo').value;
+      // Yakıt modu ve alanlar
+      const cMode = document.querySelector('input[name="c_fuel_mode"]:checked')?.value;
+      document.querySelector(`input[name="f_fuel_mode"][value="${cMode}"]`).checked = true;
+      toggleFuelMode('f');
+      $('f_burn').value = $('c_burn').value;
+      $('f_pfuel').value = $('c_pfuel').value;
+      $('f_hr').value = $('c_hr').value;
+      $('f_phedge').value = $('c_phedge').value;
+      $('f_fuel_per_ask').value = $('c_fuel_per_ask').value;
+      // CASKex & Dep/Capex/NWC
+      $('f_cask_ex').value = $('c_cask_ex').value;
+      $('f_dep').value = $('c_dep').value;
+      $('f_capex').value = $('c_capex').value;
+      $('f_nwc').value = $('c_nwc').value;
+      // WACC modu ve alanlar
+      const wmode = document.querySelector('input[name="c_wacc_mode"]:checked')?.value;
+      document.querySelector(`input[name="f_wacc_mode"][value="${wmode}"]`).checked = true;
+      toggleWaccMode('f');
+      $('f_wacc').value = $('c_wacc').value;
+      $('f_g').value = $('c_g').value;
+      $('f_rf').value = $('c_rf').value;
+      $('f_erp').value = $('c_erp').value;
+      $('f_beta').value = $('c_beta').value;
+      $('f_rp_oil').value = $('c_rp_oil').value;
+      $('f_beta_oil').value = $('c_beta_oil').value;
+      $('f_rp_fx').value = $('c_rp_fx').value;
+      $('f_beta_fx').value = $('c_beta_fx').value;
+      $('f_kd').value = $('c_kd').value;
+      $('f_tax_build').value = $('c_tax_build').value;
+      $('f_wE').value = $('c_wE').value;
+      $('f_wD').value = $('c_wD').value;
+      $('f_g_build').value = $('c_g_build').value;
+      // Vergi & Net Borç & Hisse
+      $('f_tax').value = $('c_tax').value;
+      $('f_netdebt').value = $('c_netdebt').value;
+      $('f_shares').value = $('c_shares').value;
+    }
+
+    function applyMacroAdjustments(){
+      // Basit elastikiyetler: Y için 0.30*GDP, CASKex için 0.70*Wage, P_fuel için 1.00*FuelΔ, Cargo için 1.00*CargoΔ
+      const gdp = valPct('m_gdp');
+      const wage = valPct('m_wage');
+      const fuel = valPct('m_fuel');
+      const cargo = valPct('m_cargo');
+
+      if($('f_y').value === '') $('f_y').value = $('c_y').value;
+      if($('f_cask_ex').value === '') $('f_cask_ex').value = $('c_cask_ex').value;
+      if($('f_pfuel').value === '') $('f_pfuel').value = $('c_pfuel').value;
+      if($('f_cargo').value === '') $('f_cargo').value = $('c_cargo').value;
+
+      const Y0 = val('c_y'); $('f_y').value = (Y0 * (1 + 0.30*gdp)).toFixed(6);
+      const CEX0 = val('c_cask_ex'); $('f_cask_ex').value = (CEX0 * (1 + 0.70*wage)).toFixed(6);
+      const Pf0 = val('c_pfuel'); if(Pf0) $('f_pfuel').value = (Pf0 * (1 + fuel)).toFixed(6);
+      const CG0 = val('c_cargo'); $('f_cargo').value = (CG0 * (1 + cargo)).toFixed(6);
+    }
+
+    function resetAll(){
+      document.querySelectorAll('input').forEach(i=> { if(i.type!=='radio') i.value=''; });
+      $('currency').value='TRY';
+      $('scale').value='1e6';
+      // set defaults radio
+      document.querySelector('input[name="c_fuel_mode"][value="burn"]').checked = true;
+      document.querySelector('input[name="f_fuel_mode"][value="burn"]').checked = true;
+      document.querySelector('input[name="c_wacc_mode"][value="direct"]').checked = true;
+      document.querySelector('input[name="f_wacc_mode"][value="direct"]').checked = true;
+      toggleFuelMode('c'); toggleFuelMode('f');
+      toggleWaccMode('c'); toggleWaccMode('f');
+      $('msg').textContent='';
+      ['r_rev0','r_fuel0','r_fuelpa0','r_ex0','r_caskex0','r_ebitda0','r_ebit0','r_fcff1','r_wacc0','r_g0','r_ev0','r_equity0','r_ps0',
+       'r_rev1','r_fcff2','r_wacc1','r_g1','r_ev1','r_equity1','r_ps1','r_rfcheck','rf_note'].forEach(id=>$(id).textContent='');
+    }
+
+    // Başlangıç görünümü
+    toggleFuelMode('c'); toggleFuelMode('f');
+    toggleWaccMode('c'); toggleWaccMode('f');
+  </script>
+</body>
+</html>
