@@ -22,19 +22,33 @@
       width: max-content;
       max-width: 320px;
     }
-    .section-card{ @apply bg-white shadow rounded-xl p-5 md:p-6;}
-    .grid-2{ @apply grid grid-cols-1 md:grid-cols-2 gap-4;}
-    .label{ @apply block text-sm font-medium text-gray-700 mb-1;}
-    .inp{ @apply w-full rounded-lg border-gray-300 focus:border-indigo-500 focus:ring-indigo-500;}
-    .subtle{ @apply text-xs text-gray-500;}
-    .btn{ @apply inline-flex items-center justify-center rounded-lg px-4 py-2 font-medium;}
-    .btn-primary{ @apply bg-indigo-600 text-white hover:bg-indigo-700;}
-    .btn-ghost{ @apply bg-gray-100 text-gray-800 hover:bg-gray-200;}
-    .pill{ @apply inline-flex items-center text-xs px-2 py-1 rounded-full bg-gray-100 text-gray-700;}
-    .err{ @apply text-sm text-red-600;}
-    .ok{ @apply text-sm text-emerald-700;}
-    .kpi{ @apply text-xl md:text-2xl font-semibold;}
+    /* These are regular CSS utilities: Tailwind CDN does not compile @apply in a style tag. */
+    .section-card{ background:#fff; box-shadow:0 1px 3px rgba(15,23,42,.10),0 1px 2px rgba(15,23,42,.06); border-radius:.75rem; padding:1.25rem; }
+    .grid-2{ display:grid; grid-template-columns:repeat(1,minmax(0,1fr)); gap:1rem; }
+    .label{ display:block; font-size:.875rem; line-height:1.25rem; font-weight:500; color:#374151; margin-bottom:.25rem; }
+    .inp{ width:100%; border:1px solid #d1d5db; border-radius:.5rem; padding:.625rem .75rem; background:#fff; transition:box-shadow .15s,border-color .15s; }
+    .inp:focus{ outline:2px solid transparent; outline-offset:2px; border-color:#6366f1; box-shadow:0 0 0 3px rgba(99,102,241,.18); }
+    .inp[aria-invalid="true"]{ border-color:#ef4444; box-shadow:0 0 0 3px rgba(239,68,68,.12); }
+    .subtle{ font-size:.75rem; line-height:1rem; color:#6b7280; }
+    .btn{ display:inline-flex; align-items:center; justify-content:center; border-radius:.5rem; padding:.625rem 1rem; font-weight:500; transition:background-color .15s,box-shadow .15s; }
+    .btn:focus-visible{ outline:2px solid #4f46e5; outline-offset:2px; }
+    .btn-primary{ background:#4f46e5; color:#fff; }
+    .btn-primary:hover{ background:#4338ca; }
+    .btn-ghost{ background:#f3f4f6; color:#1f2937; }
+    .btn-ghost:hover{ background:#e5e7eb; }
+    .btn-accent{ background:#0f766e; color:#fff; }
+    .btn-accent:hover{ background:#115e59; }
+    .pill{ display:inline-flex; align-items:center; font-size:.75rem; line-height:1rem; padding:.25rem .5rem; border-radius:9999px; background:#f3f4f6; color:#374151; }
+    .err{ font-size:.875rem; line-height:1.25rem; color:#b91c1c; }
+    .ok{ font-size:.875rem; line-height:1.25rem; color:#047857; }
+    .kpi{ font-size:1.25rem; line-height:1.75rem; font-weight:600; }
     .mono{ font-variant-numeric: tabular-nums; font-family: ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;}
+    .field-help{ margin-top:.25rem; min-height:1rem; }
+    .source-link{ color:#4338ca; text-decoration:underline; text-underline-offset:2px; }
+    @media (min-width:768px){
+      .section-card{ padding:1.5rem; }
+      .grid-2{ grid-template-columns:repeat(2,minmax(0,1fr)); }
+    }
   </style>
 </head>
 <body class="bg-gray-50">
@@ -44,7 +58,7 @@
         <h1 class="text-xl md:text-2xl font-semibold">Havayolu Değerleme Aracı</h1>
         <p class="text-gray-600 text-sm md:text-base">DCF (FCFF) + 1 Yıl İleri Değer • tek sayfa • tamamen cebir & istatistik</p>
       </div>
-      <div class="pill">v1.0</div>
+      <div class="pill">v1.1</div>
     </div>
   </header>
 
@@ -78,6 +92,23 @@
           <p class="subtle">Raporlamada gösterim için; hesaplama değişmez. Rakamlarını buna göre gir.</p>
         </div>
       </div>
+    </section>
+
+    <!-- ÖRNEK VERİ -->
+    <section class="section-card border-l-4 border-teal-600" aria-labelledby="example-title">
+      <div class="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+        <div>
+          <h2 id="example-title" class="text-lg font-semibold">Hazır örnek veri</h2>
+          <p class="text-sm text-gray-600 mt-1">Gerçekleşmiş şirket verilerini ve açıkça işaretlenmiş değerleme varsayımlarını forma yükleyerek akışı hızlıca deneyin.</p>
+        </div>
+        <button type="button" class="btn btn-accent shrink-0" onclick="fillExample()">Pegasus 2025 örneğini doldur</button>
+      </div>
+      <div class="mt-4 rounded-lg bg-teal-50 p-4 text-sm text-teal-950">
+        <p><strong>Veri kapsamı:</strong> En son tamamlanmış yıllık dönem olan Pegasus 2025 tam yıl operasyonel ve finansal sunumundaki ASK, doluluk, gelir, yakıt, CASK ve yardımcı gelir göstergeleri temel alınmıştır. 2026 forecast alanları senaryo varsayımıdır.</p>
+        <p class="mt-2"><strong>Finansal uyarı:</strong> Model, Euro bazında tutarlı bir örnek oluşturmak için 2025 sunumunda verilen 44,62 TRY/EUR ortalama kurla TL net borcu yaklaşık €3.460 milyon olarak dönüştürür. Birim, dönem, kira yükümlülükleri, CAPEX ve işletme sermayesi tanımlarını şirket raporlarıyla ayrıca kontrol edin; sonuç yatırım tavsiyesi değildir.</p>
+        <p class="mt-2">Kaynaklar: <a class="source-link" href="https://www.pegasusinvestorrelations.com/medium/image/2025-q4-investor-presentation_1585/view.aspx" target="_blank" rel="noopener noreferrer">2025 Q4 yatırımcı sunumu</a> · <a class="source-link" href="https://www.pegasusinvestorrelations.com/medium/image/2025-annual-activity-report_1584/view.aspx" target="_blank" rel="noopener noreferrer">2025 yıllık faaliyet raporu</a></p>
+      </div>
+      <p id="example-status" class="field-help subtle" role="status" aria-live="polite"></p>
     </section>
 
     <!-- BUGÜN -->
@@ -161,8 +192,9 @@
         <h3 class="font-semibold mb-3">Yakıt Dışı Maliyetler</h3>
         <div class="grid-2">
           <div>
-            <label class="label">CASK<sup>ex</sup> / ASK</label>
+            <label class="label">Yakıt ve amortisman dışı işletme maliyeti / ASK</label>
             <input id="c_cask_ex" class="inp" type="number" step="any" placeholder="Örn. 0.045" />
+            <p class="subtle">EBITDA hesabında kullanılan maliyet; amortisman ayrıca aşağıda düşülür.</p>
           </div>
           <div>
             <label class="label">Amortisman (Depreciation)</label>
@@ -276,7 +308,7 @@
       <div class="flex items-center justify-between mb-4">
         <h2 class="text-lg font-semibold">2) 1 Yıl Sonrası Değer İçin Girdiler (Forecast)</h2>
         <div class="flex gap-2">
-          <button class="btn btn-ghost" onclick="copyCurrentToForecast()">Bugünkü değerleri kopyala</button>
+          <button type="button" class="btn btn-ghost" onclick="copyCurrentToForecast()">Bugünkü değerleri kopyala</button>
         </div>
       </div>
 
@@ -305,7 +337,7 @@
             <p class="subtle">CARGO/ASK'e bire bir uygulanır.</p>
           </div>
           <div class="md:col-span-2">
-            <button class="btn btn-ghost" onclick="applyMacroAdjustments()">Makroyu forecast'a uygula</button>
+            <button type="button" class="btn btn-ghost" onclick="applyMacroAdjustments()">Makroyu forecast'a uygula</button>
           </div>
         </div>
       </details>
@@ -386,8 +418,9 @@
         <h3 class="font-semibold mb-3">Yakıt Dışı Maliyetler (t+1)</h3>
         <div class="grid-2">
           <div>
-            <label class="label">CASK<sup>ex</sup> / ASK (t+1)</label>
+            <label class="label">Yakıt ve amortisman dışı işletme maliyeti / ASK (t+1)</label>
             <input id="f_cask_ex" class="inp" type="number" step="any" />
+            <p class="subtle">EBITDA hesabında kullanılan maliyet; amortisman ayrıca düşülür.</p>
           </div>
           <div>
             <label class="label">Amortisman (t+1)</label>
@@ -499,11 +532,11 @@
       <div class="flex items-center justify-between">
         <h2 class="text-lg font-semibold">3) Hesapla</h2>
         <div class="flex gap-2">
-          <button class="btn btn-ghost" onclick="resetAll()">Temizle</button>
-          <button class="btn btn-primary" onclick="computeAll()">Hesapla</button>
+          <button type="button" class="btn btn-ghost" onclick="resetAll()">Temizle</button>
+          <button type="button" class="btn btn-primary" onclick="computeAll()">Hesapla</button>
         </div>
       </div>
-      <p id="msg" class="mt-3"></p>
+      <p id="msg" class="mt-3" role="status" aria-live="polite"></p>
 
       <div id="results" class="mt-5 grid gap-6 md:grid-cols-2">
         <!-- Bugün -->
@@ -517,7 +550,7 @@
             <div><span class="text-gray-600">EBIT:</span> <span id="r_ebit0" class="mono"></span></div>
             <div><span class="text-gray-600">FCFF₁:</span> <span id="r_fcff1" class="mono"></span></div>
             <div class="border-t pt-2"><span class="text-gray-600">WACC:</span> <span id="r_wacc0" class="mono"></span> • <span class="text-gray-600">g:</span> <span id="r_g0" class="mono"></span></div>
-            <div class="kpi">EV₀: <span id="r_ev0" class="mono"></span> <span class="pill" id="curLabel"></span></div>
+            <div class="kpi">EV₀: <span id="r_ev0" class="mono"></span></div>
             <div><span class="text-gray-600">Özsermaye (Equity):</span> <span id="r_equity0" class="mono"></span></div>
             <div><span class="text-gray-600">Hisse Fiyatı (ops.):</span> <span id="r_ps0" class="mono"></span></div>
           </div>
@@ -530,7 +563,7 @@
             <div><span class="text-gray-600">Gelir (REV t+1):</span> <span id="r_rev1" class="mono"></span></div>
             <div><span class="text-gray-600">FCFF<sub>t+1</sub>:</span> <span id="r_fcff2" class="mono"></span></div>
             <div class="border-t pt-2"><span class="text-gray-600">WACC<sub>t+1</sub>:</span> <span id="r_wacc1" class="mono"></span> • <span class="text-gray-600">g<sub>t+1</sub>:</span> <span id="r_g1" class="mono"></span></div>
-            <div class="kpi">EV<sub>t+1</sub> (Gordon): <span id="r_ev1" class="mono"></span> <span class="pill" id="curLabel2"></span></div>
+            <div class="kpi">EV<sub>t+1</sub> (Gordon): <span id="r_ev1" class="mono"></span></div>
             <div><span class="text-gray-600">Özsermaye (t+1):</span> <span id="r_equity1" class="mono"></span></div>
             <div><span class="text-gray-600">Hisse Fiyatı (ops.):</span> <span id="r_ps1" class="mono"></span></div>
             <div class="border-t pt-2"><span class="text-gray-600">Roll‑forward kontrolü:</span> <span id="r_rfcheck" class="mono"></span> <span class="subtle">( (1+WACC<sub>t+1</sub>)·EV₀ − FCFF<sub>t+1</sub> )</span></div>
@@ -541,7 +574,7 @@
     </section>
 
     <footer class="text-center text-xs text-gray-500 py-4">
-      Cebir: REV = ASK·(LF·Y + A + CARGO); FCFF = EBIT·(1−τ) + Dep − CAPEX − ΔNWC; EV = FCFF<sub>1</sub>/(WACC−g)
+      Cebir: REV = ASK·(LF·Y + A + CARGO); FCFF = EBIT·(1−τ) + Dep − CAPEX − ΔNWC; EV<sub>t</sub> = FCFF<sub>t+1</sub>/(WACC−g), EV<sub>t+1</sub> = FCFF<sub>t+1</sub>·(1+g)/(WACC−g)
     </footer>
   </main>
 
@@ -568,6 +601,67 @@
       return isNaN(v)? def : v;
     };
     const valPct = (id, def=0)=> val(id, def)/100;
+    const rawVal = (id)=> {
+      const raw = $(id)?.value?.trim();
+      if(raw === undefined || raw === '') return null;
+      const n = Number(raw);
+      return Number.isFinite(n) ? n : null;
+    };
+
+    function requireNumber(id, label, {min=-Infinity, max=Infinity, positive=false}={}){
+      const n = rawVal(id);
+      if(n === null) throw new Error(`${label} alanı doldurulmalı.`);
+      if(positive ? n <= 0 : n < min || n > max){
+        const rule = positive ? '0’dan büyük' : `${min} ile ${max} arasında`;
+        throw new Error(`${label} ${rule} olmalı.`);
+      }
+      return n;
+    }
+
+    function validateInputs(prefix){
+      requireNumber(`${prefix}_ask`, `${prefix === 'c' ? 'Bugün' : 'Forecast'} ASK`, {positive:true});
+      requireNumber(`${prefix}_lf`, `${prefix === 'c' ? 'Bugün' : 'Forecast'} doluluk`, {min:0, max:100});
+      requireNumber(`${prefix}_y`, `${prefix === 'c' ? 'Bugün' : 'Forecast'} yield`, {min:0});
+      requireNumber(`${prefix}_cask_ex`, `${prefix === 'c' ? 'Bugün' : 'Forecast'} işletme maliyeti / ASK`, {min:0});
+      requireNumber(`${prefix}_dep`, `${prefix === 'c' ? 'Bugün' : 'Forecast'} amortisman`, {min:0});
+      requireNumber(`${prefix}_capex`, `${prefix === 'c' ? 'Bugün' : 'Forecast'} CAPEX`, {min:0});
+      requireNumber(`${prefix}_nwc`, `${prefix === 'c' ? 'Bugün' : 'Forecast'} ΔNWC`);
+      requireNumber(`${prefix}_tax`, `${prefix === 'c' ? 'Bugün' : 'Forecast'} vergi oranı`, {min:0, max:100});
+      requireNumber(`${prefix}_netdebt`, `${prefix === 'c' ? 'Bugün' : 'Forecast'} net borç`);
+      if(rawVal(`${prefix}_shares`) !== null) requireNumber(`${prefix}_shares`, `${prefix === 'c' ? 'Bugün' : 'Forecast'} hisse adedi`, {positive:true});
+
+      const fuelMode = document.querySelector(`input[name="${prefix}_fuel_mode"]:checked`)?.value || 'burn';
+      if(fuelMode === 'perask'){
+        requireNumber(`${prefix}_fuel_per_ask`, `${prefix === 'c' ? 'Bugün' : 'Forecast'} FUEL / ASK`, {min:0});
+      } else {
+        requireNumber(`${prefix}_burn`, `${prefix === 'c' ? 'Bugün' : 'Forecast'} yakıt tüketimi / ASK`, {positive:true});
+        requireNumber(`${prefix}_pfuel`, `${prefix === 'c' ? 'Bugün' : 'Forecast'} jet yakıt fiyatı`, {positive:true});
+        requireNumber(`${prefix}_hr`, `${prefix === 'c' ? 'Bugün' : 'Forecast'} hedge oranı`, {min:0, max:100});
+        if(valPct(`${prefix}_hr`) > 0) requireNumber(`${prefix}_phedge`, `${prefix === 'c' ? 'Bugün' : 'Forecast'} hedge fiyatı`, {min:0});
+      }
+
+      const wmode = document.querySelector(`input[name="${prefix}_wacc_mode"]:checked`)?.value || 'direct';
+      if(wmode === 'direct'){
+        requireNumber(`${prefix}_wacc`, `${prefix === 'c' ? 'Bugün' : 'Forecast'} WACC`, {min:0, max:100});
+        requireNumber(`${prefix}_g`, `${prefix === 'c' ? 'Bugün' : 'Forecast'} uzun dönem büyüme`, {min:-100, max:100});
+      } else {
+        ['rf','erp','beta','kd','wE','wD','tax_build','g_build'].forEach(id=>{
+          const limits = id === 'beta' ? {min:0} : {min:0, max:100};
+          requireNumber(`${prefix}_${id}`, `${prefix} WACC bileşeni (${id})`, limits);
+        });
+        const wE = valPct(`${prefix}_wE`), wD = valPct(`${prefix}_wD`);
+        if(Math.abs(wE + wD - 1) > 1e-6) throw new Error('WACC ağırlıkları toplamı %100 olmalı.');
+        [['rp_oil','beta_oil'],['rp_fx','beta_fx']].forEach(([rp,beta])=>{
+          const hasRp = rawVal(`${prefix}_${rp}`) !== null;
+          const hasBeta = rawVal(`${prefix}_${beta}`) !== null;
+          if(hasRp !== hasBeta) throw new Error(`${prefix} WACC ek faktörlerinde prim ve beta birlikte girilmeli.`);
+          if(hasRp){
+            requireNumber(`${prefix}_${rp}`, `${prefix} ${rp}`, {min:0, max:100});
+            requireNumber(`${prefix}_${beta}`, `${prefix} ${beta}`, {min:0});
+          }
+        });
+      }
+    }
 
     function toggleFuelMode(prefix){
       const mode = document.querySelector(`input[name="${prefix}_fuel_mode"]:checked`)?.value || 'burn';
@@ -585,15 +679,15 @@
       const rf = valPct(`${prefix}_rf`);
       const erp = valPct(`${prefix}_erp`);
       const beta = val(`${prefix}_beta`);
-      const rp_oil = valPct(`${prefix}_rp_oil`);
-      const b_oil = val(`${prefix}_beta_oil`);
-      const rp_fx = valPct(`${prefix}_rp_fx`);
-      const b_fx = val(`${prefix}_beta_fx`);
+      const rp_oil = rawVal(`${prefix}_rp_oil`);
+      const b_oil = rawVal(`${prefix}_beta_oil`);
+      const rp_fx = rawVal(`${prefix}_rp_fx`);
+      const b_fx = rawVal(`${prefix}_beta_fx`);
       const kd = valPct(`${prefix}_kd`);
       const wE = valPct(`${prefix}_wE`);
       const wD = valPct(`${prefix}_wD`);
       if(Math.abs(wE + wD - 1) > 1e-6) throw new Error("WACC ağırlıkları toplamı %100 olmalı.");
-      const kE = rf + beta*erp + (isFinite(b_oil)? b_oil*rp_oil:0) + (isFinite(b_fx)? b_fx*rp_fx:0);
+      const kE = rf + beta*erp + (rp_oil !== null && b_oil !== null ? b_oil*(rp_oil/100) : 0) + (rp_fx !== null && b_fx !== null ? b_fx*(rp_fx/100) : 0);
       return wE*kE + wD*kd*(1 - tau);
     }
 
@@ -630,6 +724,7 @@
 
     // Bugün hesapla
     function computeToday(){
+      validateInputs('c');
       const ASK = val('c_ask');
       const LF = valPct('c_lf');
       const Y = val('c_y');
@@ -688,13 +783,12 @@
       $('r_ev0').textContent = fmt(EV0);
       $('r_equity0').textContent = fmt(Equity0);
       $('r_ps0').textContent = isFinite(PS0)? fmtn(PS0)+' '+cur() : '—';
-      $('curLabel').textContent = cur();
-
-      return {EV0, FCFF1, WACC, g, REV0: REV};
+      return {EV0, FCFF1, WACC, g, REV0: REV, Equity0};
     }
 
     // Forecast hesapla
     function computeForecast(EV0){
+      validateInputs('f');
       const ASK = val('f_ask');
       const LF = valPct('f_lf');
       const Y = val('f_y');
@@ -757,9 +851,7 @@
       const diff = isFinite(EV1)&&isFinite(EV1_rf) ? ((EV1_rf - EV1)/Math.abs(EV1))*100 : NaN;
       $('rf_note').textContent = isFinite(diff) ? `Roll-forward ile Gordon farkı: ${diff.toFixed(2)}%` : '';
 
-      $('curLabel2').textContent = cur();
-
-      return {EV1, EV1_rf, FCFF_next, WACC1, g1, REV1: REV};
+      return {EV1, EV1_rf, FCFF_next, WACC1, g1, REV1: REV, Equity1};
     }
 
     function computeAll(){
@@ -769,11 +861,24 @@
         const today = computeToday();
         const fwd = computeForecast(today.EV0);
         $('msg').className = 'ok';
-        $('msg').textContent = 'Hesaplama tamam.';
+        const warnings = [];
+        if(today.FCFF1 < 0) warnings.push('Bugünkü FCFF negatif');
+        if(fwd.FCFF_next < 0) warnings.push('forecast FCFF negatif');
+        if(today.Equity0 < 0) warnings.push('bugünkü özsermaye negatif');
+        if(fwd.Equity1 < 0) warnings.push('forecast özsermaye negatif');
+        $('msg').textContent = warnings.length ? `Hesaplama tamamlandı; dikkat: ${warnings.join(', ')}.` : 'Hesaplama tamam.';
+        return true;
       }catch(e){
         $('msg').className = 'err';
         $('msg').textContent = e.message || 'Hata oluştu. Alanları kontrol et.';
+        clearResults();
+        return false;
       }
+    }
+
+    function clearResults(){
+      ['r_rev0','r_fuel0','r_fuelpa0','r_ex0','r_caskex0','r_ebitda0','r_ebit0','r_fcff1','r_wacc0','r_g0','r_ev0','r_equity0','r_ps0',
+       'r_rev1','r_fcff2','r_wacc1','r_g1','r_ev1','r_equity1','r_ps1','r_rfcheck','rf_note'].forEach(id=>$(id).textContent='');
     }
 
     function copyCurrentToForecast(){
@@ -819,6 +924,48 @@
       $('f_tax').value = $('c_tax').value;
       $('f_netdebt').value = $('c_netdebt').value;
       $('f_shares').value = $('c_shares').value;
+      $('msg').className = 'ok';
+      $('msg').textContent = 'Bugünkü değerler forecast alanlarına kopyalandı. İsterseniz varsayımları güncelleyin.';
+    }
+
+    function setField(id, value){ $(id).value = value ?? ''; }
+    function setRadio(name, value){
+      const radio = document.querySelector(`input[name="${name}"][value="${value}"]`);
+      if(radio) radio.checked = true;
+    }
+
+    function fillExample(){
+      resetAll();
+      $('currency').value = 'EUR';
+      $('scale').value = '1e6';
+
+      // Pegasus 2025: reported operating data anchored to the official 2025 presentation.
+      const today = {
+        c_ask:78336, c_lf:87.7, c_y:0.03054, c_a:0.01629, c_cargo:0.00050,
+        c_fuel_per_ask:0.01158, c_cask_ex:0.02128, c_dep:423, c_capex:250, c_nwc:20,
+        c_wacc:11, c_g:3, c_tax:25, c_netdebt:3460.57, c_shares:500
+      };
+      // Forecast values are an editable scenario, not company guidance.
+      const forecast = {
+        f_ask:86000, f_lf:88, f_y:0.03100, f_a:0.01650, f_cargo:0.00050,
+        f_fuel_per_ask:0.01150, f_cask_ex:0.02180, f_dep:445, f_capex:300, f_nwc:25,
+        f_wacc:11.5, f_g:3, f_tax:25, f_netdebt:3460.57, f_shares:500
+      };
+      Object.entries(today).forEach(([id,value])=>setField(id,value));
+      Object.entries(forecast).forEach(([id,value])=>setField(id,value));
+      ['c','f'].forEach(prefix=>{
+        setRadio(`${prefix}_fuel_mode`, 'perask');
+        setRadio(`${prefix}_wacc_mode`, 'direct');
+        toggleFuelMode(prefix);
+        toggleWaccMode(prefix);
+      });
+      setField('m_gdp', 2.5);
+      setField('m_wage', 8);
+      setField('m_fuel', -5);
+      setField('m_cargo', 2);
+      $('example-status').textContent = 'Pegasus 2025 örneği yüklendi; raporlanmış göstergeler ile model varsayımları birlikte gösteriliyor.';
+      if(computeAll()) $('msg').textContent = 'Örnek veri yüklendi ve hesaplandı. Sonuçları kendi varsayımlarınızla güncelleyebilirsiniz.';
+      $('results').scrollIntoView({behavior:'smooth', block:'start'});
     }
 
     function applyMacroAdjustments(){
@@ -835,8 +982,17 @@
 
       const Y0 = val('c_y'); $('f_y').value = (Y0 * (1 + 0.30*gdp)).toFixed(6);
       const CEX0 = val('c_cask_ex'); $('f_cask_ex').value = (CEX0 * (1 + 0.70*wage)).toFixed(6);
-      const Pf0 = val('c_pfuel'); if(Pf0) $('f_pfuel').value = (Pf0 * (1 + fuel)).toFixed(6);
+      const cFuelMode = document.querySelector('input[name="c_fuel_mode"]:checked')?.value || 'burn';
+      const fFuelMode = document.querySelector('input[name="f_fuel_mode"]:checked')?.value || 'burn';
+      if(fFuelMode === 'perask'){
+        const FPA0 = cFuelMode === 'perask' ? val('c_fuel_per_ask') : val('c_burn') * ((1-valPct('c_hr'))*val('c_pfuel') + valPct('c_hr')*val('c_phedge'));
+        if(FPA0) $('f_fuel_per_ask').value = (FPA0 * (1 + fuel)).toFixed(6);
+      } else {
+        const Pf0 = val('c_pfuel'); if(Pf0) $('f_pfuel').value = (Pf0 * (1 + fuel)).toFixed(6);
+      }
       const CG0 = val('c_cargo'); $('f_cargo').value = (CG0 * (1 + cargo)).toFixed(6);
+      $('msg').className = 'ok';
+      $('msg').textContent = 'Makro varsayımları forecast alanlarına uygulandı.';
     }
 
     function resetAll(){
@@ -850,9 +1006,13 @@
       document.querySelector('input[name="f_wacc_mode"][value="direct"]').checked = true;
       toggleFuelMode('c'); toggleFuelMode('f');
       toggleWaccMode('c'); toggleWaccMode('f');
-      $('msg').textContent='';
+      document.querySelectorAll('details').forEach(details=>details.open=false);
+      $('msg').className = 'ok';
+      $('msg').textContent='Alanlar temizlendi. Yeni bir değerleme için doldurmaya hazırsınız.';
+      $('example-status').textContent='';
       ['r_rev0','r_fuel0','r_fuelpa0','r_ex0','r_caskex0','r_ebitda0','r_ebit0','r_fcff1','r_wacc0','r_g0','r_ev0','r_equity0','r_ps0',
        'r_rev1','r_fcff2','r_wacc1','r_g1','r_ev1','r_equity1','r_ps1','r_rfcheck','rf_note'].forEach(id=>$(id).textContent='');
+      $('c_ask').focus();
     }
 
     // Başlangıç görünümü
